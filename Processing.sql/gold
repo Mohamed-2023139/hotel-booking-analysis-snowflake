@@ -1,1 +1,71 @@
 
+/*===============================================================================
+ Create Gold Views
+===============================================================================
+Script Purpose:
+    This script creates views for the Gold layer in the data warehouse. 
+    The Gold layer represents the final dimension and fact tables (Star Schema)
+
+    Each view performs transformations and combines data from the Silver layer 
+    to produce a clean, enriched, and business-ready dataset.
+
+Usage:
+    - These views can be queried directly for analytics and reporting.
+===============================================================================*/
+--DIM_HOTEL--
+CREATE OR REPLACE VIEW DIM_HOTEL AS
+SELECT DISTINCT
+    DENSE_RANK() OVER (ORDER BY hotel_id) AS hotel_sk,
+    hotel_id,
+    INITCAP(TRIM(hotel_city)) AS hotel_city
+FROM SILVER_HOTEL_BOOKINGS
+WHERE hotel_id IS NOT NULL;
+
+--DIM_CUSTOMER--
+CREATE OR REPLACE VIEW DIM_CUSTOMER AS
+SELECT DISTINCT
+    DENSE_RANK() OVER (ORDER BY customer_id) AS customer_sk,
+    customer_id,
+    INITCAP(TRIM(customer_name)) AS customer_name,
+    LOWER(TRIM(customer_email)) AS customer_email
+FROM SILVER_HOTEL_BOOKINGS
+WHERE customer_id IS NOT NULL;
+--DIM_ROOM--
+CREATE OR REPLACE VIEW DIM_ROOM AS
+SELECT DISTINCT
+    DENSE_RANK() OVER (ORDER BY room_type) AS room_sk,
+    room_type
+FROM SILVER_HOTEL_BOOKINGS
+WHERE room_type IS NOT NULL;
+--Facttable--
+CREATE OR REPLACE VIEW FACT_BOOKINGS AS
+SELECT
+    b.booking_id,
+
+    h.hotel_sk,
+    c.customer_sk,
+    r.room_sk,
+
+    b.check_in_date,
+    b.check_out_date,
+
+    b.num_guests,
+    b.total_amount,
+    b.currency,
+    b.booking_status
+FROM SILVER_HOTEL_BOOKINGS b
+LEFT JOIN DIM_HOTEL h
+    ON b.hotel_id = h.hotel_id
+LEFT JOIN DIM_CUSTOMER c
+    ON b.customer_id = c.customer_id
+LEFT JOIN DIM_ROOM r
+    ON b.room_type = r.room_type;
+
+-- =====================================
+-- VERIFICATION
+-- =====================================
+
+SELECT * FROM FACT_BOOKINGS LIMIT 10;
+SELECT * FROM DIM_HOTEL;
+SELECT * FROM DIM_CUSTOMER LIMIT 10;
+SELECT * FROM DIM_ROOM;
